@@ -1,7 +1,15 @@
+import os
 from flask import Flask, jsonify, request
 from zones import get_zone, list_zones, get_zones_by_category, calculate_max_floor_space
 
+# ─────────────────────────────────────────────
+# CAPE TOWN ZONING API
+# Built by Regulo Systems
+# Source: City of Cape Town Zoning Scheme Regulations, November 2012
+# ─────────────────────────────────────────────
+
 app = Flask(__name__)
+
 
 @app.route('/')
 def index():
@@ -19,6 +27,7 @@ def index():
         }
     })
 
+
 @app.route('/zones')
 def all_zones():
     zones = list_zones()
@@ -27,6 +36,7 @@ def all_zones():
         "source": "City of Cape Town Zoning Scheme Regulations, November 2012",
         "zones": zones
     })
+
 
 @app.route('/zones/<zone_code>')
 def zone_detail(zone_code):
@@ -38,22 +48,33 @@ def zone_detail(zone_code):
         }), 404
     return jsonify({"zone_code": zone_code.upper(), **zone})
 
+
 @app.route('/zones/category/<category>')
 def zones_by_category(category):
     zones = get_zones_by_category(category)
     if not zones:
         return jsonify({
             "error": f"No zones found for category '{category}'.",
-            "available_categories": ["Residential", "Business", "Industrial", "Community", "Open Space", "Agricultural", "Utility", "Transport"]
+            "available_categories": [
+                "Residential", "Business", "Industrial", "Community",
+                "Open Space", "Agricultural", "Utility", "Transport"
+            ]
         }), 404
     return jsonify({
         "category": category,
         "total": len(zones),
         "zones": [
-            {"zone_code": code, "name": data["name"], "floor_factor": data.get("floor_factor"), "coverage": data.get("coverage"), "height_roof": data.get("height_roof")}
+            {
+                "zone_code": code,
+                "name": data["name"],
+                "floor_factor": data.get("floor_factor"),
+                "coverage": data.get("coverage"),
+                "height_roof": data.get("height_roof")
+            }
             for code, data in zones.items()
         ]
     })
+
 
 @app.route('/calculate')
 def calculate():
@@ -61,9 +82,16 @@ def calculate():
     erf_size_raw = request.args.get('erf_size', '').strip()
 
     if not zone_code:
-        return jsonify({"error": "Missing parameter: zone", "example": "/calculate?zone=GB4&erf_size=1000"}), 400
+        return jsonify({
+            "error": "Missing parameter: zone",
+            "example": "/calculate?zone=GB4&erf_size=1000"
+        }), 400
+
     if not erf_size_raw:
-        return jsonify({"error": "Missing parameter: erf_size", "example": "/calculate?zone=GB4&erf_size=1000"}), 400
+        return jsonify({
+            "error": "Missing parameter: erf_size",
+            "example": "/calculate?zone=GB4&erf_size=1000"
+        }), 400
 
     try:
         erf_size = float(erf_size_raw)
@@ -74,7 +102,10 @@ def calculate():
 
     zone = get_zone(zone_code)
     if not zone:
-        return jsonify({"error": f"Zone '{zone_code}' not found.", "hint": "Use GET /zones to see all available zone codes."}), 404
+        return jsonify({
+            "error": f"Zone '{zone_code}' not found.",
+            "hint": "Use GET /zones to see all available zone codes."
+        }), 404
 
     max_floor_space, formula = calculate_max_floor_space(zone_code, erf_size)
 
@@ -90,8 +121,15 @@ def calculate():
         "disclaimer": "Floor factor is sourced from the City of Cape Town Zoning Scheme Regulations (November 2012). Always verify with the City of Cape Town before making development decisions."
     })
 
+
+# ─────────────────────────────────────────────
+# RUN
+# ─────────────────────────────────────────────
+
 if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 10000))
     print("=" * 60)
     print("Cape Town Zoning API — Regulo Systems")
+    print(f"Running on port {port}")
     print("=" * 60)
-    app.run(host='0.0.0.0', port=10000, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=False)
